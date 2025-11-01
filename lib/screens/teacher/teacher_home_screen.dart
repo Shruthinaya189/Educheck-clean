@@ -303,7 +303,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
                                         ),
                                       );
                                     },
-                                  ),
+                                  },
                                 ),
                         ),
             ),
