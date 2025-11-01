@@ -1,0 +1,20 @@
+* text=auto eol=lf
+
+# Windows scripts
+*.bat eol=crlf
+*.cmd eol=crlf
+*.ps1 eol=crlf
+
+# Shell scripts
+*.sh eol=lf
+
+# Binaries (no EOL normalization)
+*.png -text
+*.jpg -text
+*.jpeg -text
+*.gif -text
+*.webp -text
+*.pdf -text
+*.apk -text
+*.aab -text
+*.so  -text

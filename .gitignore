@@ -1,18 +1,45 @@
-# Dart/Flutter
+# Flutter & Dart
 build/
 .dart_tool/
-*.apk
-*.aab
-*.so
-
-# Android
-android/app/build/
-android/.gradle/
-
-# Secrets
-backend/educheck.db
-backend/.env
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
 
 # IDE
 .idea/
 .vscode/
+*.iml
+*.ipr
+*.iws
+
+# Android
+android/.gradle/
+android/local.properties
+android/app/build/
+android/build/
+
+# iOS (if present)
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework/
+ios/Flutter/Generated.xcconfig
+
+# Binaries / outputs
+**/*.apk
+**/*.aab
+**/*.keystore
+**/*.jks
+**/*.so
+*.log
+
+# Backend (Python)
+backend/.venv/
+backend/venv/
+backend/.env
+backend/educheck.db
+**/__pycache__/
+**/*.pyc
+
+# OS
+.DS_Store
+Thumbs.db
