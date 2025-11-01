@@ -1,11 +1,15 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class ClassModel {
-  final int id; // Ensure int type
+  final String id;
   final String name;
   final String code;
   final String category;
   final String teacherId;
   final List<String> enrolledStudents;
   final bool isArchived;
+  final DateTime createdAt;
+  final DateTime updatedAt;
 
   ClassModel({
     required this.id,
@@ -13,51 +17,57 @@ class ClassModel {
     required this.code,
     required this.category,
     required this.teacherId,
-    this.enrolledStudents = const [],
+    required this.enrolledStudents,
     this.isArchived = false,
+    required this.createdAt,
+    required this.updatedAt,
   });
 
-  factory ClassModel.fromJson(Map<String, dynamic> json) {
+  // From Firestore
+  factory ClassModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
     return ClassModel(
-      id: json['id'],
-      name: json['name'],
-      code: json['code'],
-      category: json['category'],
-      teacherId: json['teacher_id'],
-      enrolledStudents: List<String>.from(json['enrolled_students'] ?? []),
-      isArchived: json['is_archived'] ?? false,
+      id: doc.id,
+      name: data['name'] ?? '',
+      code: data['code'] ?? '',
+      category: data['category'] ?? '',
+      teacherId: data['teacherId'] ?? '',
+      enrolledStudents: List<String>.from(data['enrolledStudents'] ?? []),
+      isArchived: data['isArchived'] ?? false,
+      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
-  Map<String, dynamic> toJson() {
+  // From API JSON (for backward compatibility)
+  factory ClassModel.fromJson(Map<String, dynamic> json) {
+    return ClassModel(
+      id: json['id']?.toString() ?? '',
+      name: json['name'] ?? '',
+      code: json['code'] ?? '',
+      category: json['category'] ?? '',
+      teacherId: json['teacher_id'] ?? '',
+      enrolledStudents: List<String>.from(json['enrolled_students'] ?? []),
+      isArchived: json['is_archived'] ?? false,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'])
+          : DateTime.now(),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'])
+          : DateTime.now(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'name': name,
       'code': code,
       'category': category,
-      'teacher_id': teacherId,
-      'enrolled_students': enrolledStudents,
-      'is_archived': isArchived,
+      'teacherId': teacherId,
+      'enrolledStudents': enrolledStudents,
+      'isArchived': isArchived,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
     };
-  }
-
-  ClassModel copyWith({
-    int? id,
-    String? name,
-    String? code,
-    String? category,
-    String? teacherId,
-    List<String>? enrolledStudents,
-    bool? isArchived,
-  }) {
-    return ClassModel(
-      id: id ?? this.id,
-      name: name ?? this.name,
-      code: code ?? this.code,
-      category: category ?? this.category,
-      teacherId: teacherId ?? this.teacherId,
-      enrolledStudents: enrolledStudents ?? this.enrolledStudents,
-      isArchived: isArchived ?? this.isArchived,
-    );
   }
 }

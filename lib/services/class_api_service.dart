@@ -1,47 +1,64 @@
-import 'api_service.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../config/api_config.dart';
+import '../models/api_exception.dart';
 import '../models/class_model.dart';
 
 class ClassApiService {
-  final ApiService _apiService = ApiService();
-  
-  // Simple cache
-  List<ClassModel>? _cachedClasses;
-  DateTime? _cacheTime;
-  static const _cacheDuration = Duration(seconds: 30);
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  String? get _userId => _auth.currentUser?.uid;
+
+  // Create class in Firestore (real-time sync)
+  Future<void> createClass(Map<String, dynamic> classData) async {
+    final userId = _userId;
+    if (userId == null) throw ApiException('User not authenticated');
+
+    await _firestore.collection('classes').add({
+      ...classData,
+      'teacherId': userId,
+      'enrolledStudents': [],
+      'isArchived': false,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Get teacher classes (real-time stream)
   Future<List<ClassModel>> getTeacherClasses({bool forceRefresh = false}) async {
-    // Return cache if valid and not forcing refresh
-    if (!forceRefresh && _cachedClasses != null && _cacheTime != null) {
-      if (DateTime.now().difference(_cacheTime!) < _cacheDuration) {
-        return _cachedClasses!;
-      }
+    final userId = _userId;
+    if (userId == null) return [];
+
+    final snapshot = await _firestore
+        .collection('classes')
+        .where('teacherId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .get();
+
+    return snapshot.docs.map((doc) => ClassModel.fromFirestore(doc)).toList();
+  }
+
+  // Update class
+  Future<void> updateClass(String classId, Map<String, dynamic> updates) async {
+    await _firestore.collection('classes').doc(classId).update({
+      ...updates,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Delete class
+  Future<void> deleteClass(String classId) async {
+    final userId = _userId;
+    if (userId == null) throw ApiException('User not authenticated');
+
+    final doc = await _firestore.collection('classes').doc(classId).get();
+    if (doc.data()?['teacherId'] != userId) {
+      throw ApiException('Unauthorized');
     }
 
-    final data = await _apiService.get('/api/teacher/classes');
-    final classes = (data as List).map((json) => ClassModel.fromJson(json)).toList();
-    
-    // Update cache
-    _cachedClasses = classes;
-    _cacheTime = DateTime.now();
-    
-    return classes;
-  }
-
-  // Clear cache when creating/updating/deleting
-  Future<ClassModel> createClass(Map<String, dynamic> classData) async {
-    final data = await _apiService.post('/api/teacher/classes', body: classData);
-    _cachedClasses = null;
-    return ClassModel.fromJson(data);
-  }
-
-  Future<void> updateClass(int classId, Map<String, dynamic> updates) async {
-    await _apiService.put('/api/teacher/classes/$classId', body: updates);
-    _cachedClasses = null;
-  }
-
-  Future<void> deleteClass(int classId) async {
-    await _apiService.delete('/api/teacher/classes/$classId');
-    _cachedClasses = null; // invalidate cache
+    await _firestore.collection('classes').doc(classId).delete();
   }
 }

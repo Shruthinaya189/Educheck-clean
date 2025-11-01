@@ -2,12 +2,23 @@
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'screens/login_screen.dart'; // Import the new login screen
+import 'firebase_options.dart';
 import 'screens/splash_screen.dart';
 
-Future<void> main() async {
+void main() async {
+  // Ensure Flutter is initialized
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+
+  // Initialize Firebase before running the app
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print('✅ Firebase initialized successfully');
+  } catch (e) {
+    print('❌ Firebase initialization failed: $e');
+  }
+
   runApp(const MyApp());
 }
 
@@ -20,11 +31,12 @@ class MyApp extends StatelessWidget {
       title: 'EduCheck',
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        useMaterial3: true, // Modern Material Design
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       debugShowCheckedModeBanner: false,
-      // Set LoginScreen as the home page
-      home: const LoginScreen(),
+      // Start with the splash screen for fast startup
+      home: const SplashScreen(),
     );
   }
 }

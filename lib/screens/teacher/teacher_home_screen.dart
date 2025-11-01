@@ -7,12 +7,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http_parser/http_parser.dart';
 import 'dart:convert';
 
+import '../../models/api_exception.dart';
 import '../../config/api_config.dart';
 import '../../models/class_model.dart';
 import '../../services/auth_service.dart';
 import '../../services/class_api_service.dart';
 import '../login_screen.dart';
 import 'class_detail_screen.dart';
+import 'teacher_dashboard_page.dart';
+import 'teacher_classes_page.dart';
+import 'teacher_exams_page.dart';
+import 'teacher_analytics_page.dart';
+import 'teacher_profile_page.dart';
 
 class TeacherHomeScreen extends StatefulWidget {
   const TeacherHomeScreen({super.key});
@@ -21,18 +27,26 @@ class TeacherHomeScreen extends StatefulWidget {
   State<TeacherHomeScreen> createState() => _TeacherHomeScreenState();
 }
 
-class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
+class _TeacherHomeScreenState extends State<TeacherHomeScreen> with AutomaticKeepAliveClientMixin {
   final AuthService _authService = AuthService();
   final ClassApiService _classApiService = ClassApiService();
   final ImagePicker _picker = ImagePicker();
 
   List<ClassModel> _classes = [];
-  String _selectedCategory = 'All';
   bool _showArchived = false;
   bool _isDarkMode = false;
   bool _loading = false;
   String? _error;
   DateTime? _lastRefreshTime;
+  int _selectedIndex = 0;
+
+  final List<Widget> _pages = const [
+    TeacherDashboardPage(),
+    TeacherClassesPage(),
+    TeacherExamsPage(),
+    TeacherAnalyticsPage(),
+    TeacherProfilePage(),
+  ];
 
   @override
   void initState() {
@@ -69,11 +83,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   }
 
   List<ClassModel> get _filteredClasses {
-    var filtered = _classes.where((c) => c.isArchived == _showArchived);
-    if (_selectedCategory != 'All') {
-      filtered = filtered.where((c) => c.category == _selectedCategory);
-    }
-    return filtered.toList();
+    return _classes.where((c) => c.isArchived == _showArchived).toList();
   }
 
   Future<void> _uploadPapers() async {
@@ -83,7 +93,7 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
 
       setState(() => _loading = true);
 
-      final uri = Uri.parse(ApiConfig.baseUrl + '/api/uploads/images-to-pdf');
+      final uri = Uri.parse('${ApiConfig.baseUrl}/api/uploads/images-to-pdf');
       final req = http.MultipartRequest('POST', uri);
 
       for (final img in images) {
@@ -118,7 +128,20 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
+    
+    if (_selectedIndex > 0) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        body: _pages[_selectedIndex],
+        bottomNavigationBar: _buildBottomNav(),
+      );
+    }
+
     final ThemeData theme = _isDarkMode ? ThemeData.dark() : ThemeData.light();
     return Theme(
       data: theme.copyWith(
@@ -167,149 +190,154 @@ class _TeacherHomeScreenState extends State<TeacherHomeScreen> {
             ),
           ],
         ),
-        body: Column(
-          children: [
-            Container(
-              height: 60,
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: ListView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                children: ['All', '1st Year', '2nd Year', '3rd Year', '4th Year']
-                    .map((category) => Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            avatar: Icon(category == 'All' ? Icons.grid_view : Icons.class_, size: 18, color: _selectedCategory == category ? Colors.white : theme.textTheme.bodyMedium?.color),
-                            label: Text(category),
-                            selected: _selectedCategory == category,
-                            selectedColor: Colors.blue,
-                            backgroundColor: theme.brightness == Brightness.dark ? Colors.grey.shade800 : Colors.grey.shade200,
-                            labelStyle: TextStyle(color: _selectedCategory == category ? Colors.white : theme.textTheme.bodyMedium?.color),
-                            onSelected: (selected) {
-                              if (selected) setState(() => _selectedCategory = category);
-                            },
-                          ),
-                        ))
-                    .toList(),
-              ),
-            ),
-            Expanded(
-              child: _loading && _classes.isEmpty
-                  ? const Center(child: CircularProgressIndicator())
-                  : _error != null && _classes.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+        body: _loading && _classes.isEmpty
+            ? const Center(child: CircularProgressIndicator())
+            : _error != null && _classes.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.error_outline, size: 64, color: Colors.redAccent),
+                        const SizedBox(height: 12),
+                        Text(_error!, style: const TextStyle(color: Colors.redAccent)),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(onPressed: () => _loadClasses(forceRefresh: true), icon: const Icon(Icons.refresh), label: const Text('Retry')),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: () => _loadClasses(forceRefresh: true),
+                    child: _filteredClasses.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
                             children: [
-                              const Icon(Icons.error_outline, size: 64, color: Colors.redAccent),
-                              const SizedBox(height: 12),
-                              Text(_error!, style: const TextStyle(color: Colors.redAccent)),
-                              const SizedBox(height: 12),
-                              ElevatedButton.icon(onPressed: () => _loadClasses(forceRefresh: true), icon: const Icon(Icons.refresh), label: const Text('Retry')),
-                            ],
-                          ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: () => _loadClasses(forceRefresh: true),
-                          child: _filteredClasses.isEmpty
-                              ? ListView(
-                                  physics: const AlwaysScrollableScrollPhysics(),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 48),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 48),
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(_showArchived ? Icons.archive_outlined : Icons.class_outlined, size: 100, color: Colors.grey.shade300),
-                                          const SizedBox(height: 24),
-                                          Text(_showArchived ? 'No archived classes' : 'No classes yet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
-                                          if (!_showArchived) ...[
-                                            const SizedBox(height: 12),
-                                            Text('Tap + to create your first class', style: TextStyle(fontSize: 16, color: Colors.grey.shade500)),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
+                                    Icon(_showArchived ? Icons.archive_outlined : Icons.class_outlined, size: 100, color: Colors.grey.shade300),
+                                    const SizedBox(height: 24),
+                                    Text(_showArchived ? 'No archived classes' : 'No classes yet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.grey.shade600)),
+                                    if (!_showArchived) ...[
+                                      const SizedBox(height: 12),
+                                      Text('Tap + to create your first class', style: TextStyle(fontSize: 16, color: Colors.grey.shade500)),
+                                    ],
                                   ],
-                                )
-                              : ListView.builder(
-                                  padding: const EdgeInsets.all(16),
-                                  itemCount: _filteredClasses.length,
-                                  itemBuilder: (context, index) {
-                                    final classData = _filteredClasses[index];
-                                    final colors = [
-                                      [Colors.blue.shade400, Colors.blue.shade700],
-                                      [Colors.purple.shade400, Colors.purple.shade700],
-                                      [Colors.green.shade400, Colors.green.shade700],
-                                      [Colors.orange.shade400, Colors.orange.shade700],
-                                      [Colors.pink.shade400, Colors.pink.shade700],
-                                    ];
-                                    final colorPair = colors[classData.name.hashCode.abs() % colors.length];
+                                ),
+                              ),
+                            ],
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _filteredClasses.length,
+                            itemBuilder: (context, index) {
+                              final classData = _filteredClasses[index];
+                              final colors = [
+                                [Colors.blue.shade400, Colors.blue.shade700],
+                                [Colors.purple.shade400, Colors.purple.shade700],
+                                [Colors.green.shade400, Colors.green.shade700],
+                                [Colors.orange.shade400, Colors.orange.shade700],
+                                [Colors.pink.shade400, Colors.pink.shade700],
+                              ];
+                              final colorPair = colors[classData.name.hashCode.abs() % colors.length];
 
-                                    return Container(
-                                      margin: const EdgeInsets.only(bottom: 16),
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(colors: colorPair, begin: Alignment.topLeft, end: Alignment.bottomRight),
-                                        borderRadius: BorderRadius.circular(16),
-                                        boxShadow: [BoxShadow(color: colorPair[1].withOpacity(0.5), blurRadius: 10, offset: const Offset(0, 5))],
-                                      ),
-                                      child: Material(
-                                        color: Colors.transparent,
-                                        child: InkWell(
-                                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ClassDetailScreen(classModel: classData))),
-                                          borderRadius: BorderRadius.circular(16),
-                                          child: Padding(
-                                            padding: const EdgeInsets.all(20),
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                              return RepaintBoundary(
+                                child: Container(
+                                  key: ValueKey(classData.id),
+                                  margin: const EdgeInsets.only(bottom: 16),
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(colors: colorPair, begin: Alignment.topLeft, end: Alignment.bottomRight),
+                                    borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [BoxShadow(color: colorPair[1].withOpacity(0.5), blurRadius: 10, offset: const Offset(0, 5))],
+                                  ),
+                                  child: Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => ClassDetailScreen(classModel: classData))),
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(20),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
                                               children: [
-                                                Row(
-                                                  children: [
-                                                    Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.class_, color: Colors.white, size: 24)),
-                                                    const SizedBox(width: 12),
-                                                    Expanded(
-                                                      child: Column(
-                                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                                        children: [
-                                                          Text(classData.name, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                                                          const SizedBox(height: 4),
-                                                          Text('Code: ${classData.code}', style: const TextStyle(color: Colors.white70, fontSize: 14)),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                    PopupMenuButton(
-                                                      icon: const Icon(Icons.more_vert, color: Colors.white),
-                                                      itemBuilder: (context) => [
-                                                        if (!_showArchived) const PopupMenuItem(value: 'share', child: ListTile(leading: Icon(Icons.share), title: Text('Share'), contentPadding: EdgeInsets.zero)),
-                                                        if (!_showArchived) const PopupMenuItem(value: 'qr', child: ListTile(leading: Icon(Icons.qr_code), title: Text('QR Code'), contentPadding: EdgeInsets.zero)),
-                                                        PopupMenuItem(value: _showArchived ? 'unarchive' : 'archive', child: ListTile(leading: Icon(_showArchived ? Icons.unarchive : Icons.archive), title: Text(_showArchived ? 'Unarchive' : 'Archive'), contentPadding: EdgeInsets.zero)),
-                                                        const PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete, color: Colors.red), title: Text('Delete', style: TextStyle(color: Colors.red)), contentPadding: EdgeInsets.zero)),
-                                                      ],
-                                                      onSelected: (value) => _handleMenuAction(value.toString(), classData),
-                                                    ),
-                                                  ],
+                                                Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.class_, color: Colors.white, size: 24)),
+                                                const SizedBox(width: 12),
+                                                Expanded(
+                                                  child: Column(
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                      Text(classData.name, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                                                      const SizedBox(height: 4),
+                                                      Text('Code: ${classData.code}', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                                                    ],
+                                                  ),
                                                 ),
-                                                const SizedBox(height: 16),
-                                                Row(
-                                                  children: [
-                                                    _buildTag(Icons.school, classData.category),
-                                                    const SizedBox(width: 12),
-                                                    _buildTag(Icons.people, '${classData.enrolledStudents.length}'),
+                                                PopupMenuButton(
+                                                  icon: const Icon(Icons.more_vert, color: Colors.white),
+                                                  itemBuilder: (context) => [
+                                                    if (!_showArchived) const PopupMenuItem(value: 'share', child: ListTile(leading: Icon(Icons.share), title: Text('Share'), contentPadding: EdgeInsets.zero)),
+                                                    if (!_showArchived) const PopupMenuItem(value: 'qr', child: ListTile(leading: Icon(Icons.qr_code), title: Text('QR Code'), contentPadding: EdgeInsets.zero)),
+                                                    PopupMenuItem(value: _showArchived ? 'unarchive' : 'archive', child: ListTile(leading: Icon(_showArchived ? Icons.unarchive : Icons.archive), title: Text(_showArchived ? 'Unarchive' : 'Archive'), contentPadding: EdgeInsets.zero)),
+                                                    const PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(Icons.delete, color: Colors.red), title: Text('Delete', style: TextStyle(color: Colors.red)), contentPadding: EdgeInsets.zero)),
                                                   ],
+                                                  onSelected: (value) => _handleMenuAction(value.toString(), classData),
                                                 ),
                                               ],
                                             ),
-                                          ),
+                                            const SizedBox(height: 16),
+                                            Row(
+                                              children: [
+                                                _buildTag(Icons.people, '${classData.enrolledStudents.length} students'),
+                                              ],
+                                            ),
+                                          ],
                                         ),
-                                      );
-                                    },
-                                  },
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                        ),
-            ),
-          ],
-        ),
+                              );
+                            },
+                          ),
+                  ),
         floatingActionButton: _showArchived ? null : FloatingActionButton.extended(onPressed: _showCreateClassDialog, icon: const Icon(Icons.add), label: const Text('Create Class')),
+        bottomNavigationBar: _buildBottomNav(),
+      ),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) => setState(() => _selectedIndex = index),
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: const Color(0xFF1E3A8A),
+        unselectedItemColor: const Color(0xFF9CA3AF),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+        unselectedLabelStyle: const TextStyle(fontSize: 12),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.dashboard_outlined), activeIcon: Icon(Icons.dashboard), label: 'Dashboard'),
+          BottomNavigationBarItem(icon: Icon(Icons.class_outlined), activeIcon: Icon(Icons.class_), label: 'Classes'),
+          BottomNavigationBarItem(icon: Icon(Icons.assignment_outlined), activeIcon: Icon(Icons.assignment), label: 'Exams'),
+          BottomNavigationBarItem(icon: Icon(Icons.analytics_outlined), activeIcon: Icon(Icons.analytics), label: 'Analytics'),
+          BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+        ],
       ),
     );
   }

@@ -4,6 +4,9 @@ build/
 .flutter-plugins
 .flutter-plugins-dependencies
 .packages
+.pub-cache/
+.pub/
+/build/
 
 # IDE
 .idea/
@@ -14,15 +17,26 @@ build/
 
 # Android
 android/.gradle/
+android/captures/
+android/gradlew
+android/gradlew.bat
 android/local.properties
-android/app/build/
-android/build/
+android/.gradle
+android/.idea
+android/build
+android/app/build
 
 # iOS (if present)
 ios/Pods/
 ios/.symlinks/
-ios/Flutter/Flutter.framework/
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
 ios/Flutter/Generated.xcconfig
+ios/Flutter/ephemeral
+ios/Flutter/flutter_export_environment.sh
+ios/ServiceDefinitions.json
+ios/Runner/GeneratedPluginRegistrant.*
 
 # Binaries / outputs
 **/*.apk
@@ -40,6 +54,31 @@ backend/educheck.db
 **/__pycache__/
 **/*.pyc
 
+# Secrets (IMPORTANT!)
+**/*.env
+**/*.env.local
+**/google-services.json
+**/GoogleService-Info.plist
+**/firebase_options.dart
+
 # OS
 .DS_Store
 Thumbs.db
+
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
