@@ -1,0 +1,18 @@
+# Dart/Flutter
+build/
+.dart_tool/
+*.apk
+*.aab
+*.so
+
+# Android
+android/app/build/
+android/.gradle/
+
+# Secrets
+backend/educheck.db
+backend/.env
+
+# IDE
+.idea/
+.vscode/
