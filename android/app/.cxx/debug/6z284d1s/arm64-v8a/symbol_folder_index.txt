@@ -1,0 +1,1 @@
+C:\src\educheck\android\app\build\intermediates\cxx\debug\6z284d1s\obj\arm64-v8a
